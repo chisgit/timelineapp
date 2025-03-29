@@ -43,6 +43,14 @@ type ContextMenu = {
   taskId: string
 } | null
 
+type DragInfo = {
+  isDragging: boolean
+  taskIds: string[]
+  startX: number
+  originalPositions: Array<{ id: string; startDay: number }>
+  snappedPositions?: Record<string, number>
+} | null
+
 export function Timeline() {
   const [lanes, setLanes] = useState<Lane[]>([
     { id: "lane-1", title: "Design", isExpanded: true },
@@ -131,13 +139,7 @@ export function Timeline() {
   ])
 
   const [selectedTasks, setSelectedTasks] = useState<string[]>([])
-  const [dragInfo, setDragInfo] = useState<{
-    isDragging: boolean;
-    taskIds: string[];
-    startX: number;
-    originalPositions: Array<{ id: string; startDay: number }>;
-    snappedPositions?: Record<string, number>; // Track snapped vertical positions
-  } | null>(null)
+  const [dragInfo, setDragInfo] = useState<DragInfo>(null)
 
   // Add mouse position tracking state
   const [currentMousePosition, setCurrentMousePosition] = useState<{ 
@@ -247,31 +249,35 @@ export function Timeline() {
 
   // Handle task dragging
   const handleTaskDragMove = (event: MouseEvent) => {
-    if (!dragInfoRef.current || !timelineRef.current || !dragInfoRef.current.isDragging) return
+    if (!dragInfoRef.current?.isDragging || !timelineRef.current) return;
 
-    event.preventDefault()
+    event.preventDefault();
     
     setCurrentMousePosition({ 
       x: event.clientX,
       y: event.clientY,
       lastY: currentMousePosition?.y
-    })
+    });
     
-    const dayWidth = getDayWidth()
-    if (dayWidth === 0) return
+    const dayWidth = getDayWidth();
+    if (dayWidth === 0) return;
 
-    const deltaX = event.clientX - dragInfoRef.current.startX
-    const dayDelta = Math.round(deltaX / dayWidth)
+    const deltaX = event.clientX - dragInfoRef.current.startX;
+    const dayDelta = Math.round(deltaX / dayWidth);
 
     // Update task positions
     setTasks(prevTasks => {
-      const newTasks = [...prevTasks]
+      const newTasks = [...prevTasks];
+      const dragInfo = dragInfoRef.current;
+      
+      // Additional null check before accessing taskIds
+      if (!dragInfo?.taskIds) return newTasks;
 
-      dragInfoRef.current!.taskIds.forEach(taskId => {
+      dragInfo.taskIds.forEach(taskId => {
         const taskIndex = newTasks.findIndex(t => t.id === taskId)
         if (taskIndex === -1) return
 
-        const originalPosition = dragInfoRef.current!.originalPositions.find(p => p.id === taskId)
+        const originalPosition = dragInfo!.originalPositions.find(p => p.id === taskId)
         if (!originalPosition) return
 
         const task = newTasks[taskIndex]
