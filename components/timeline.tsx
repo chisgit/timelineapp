@@ -21,6 +21,7 @@ export type Task = {
   color: string
   laneId: string
   dependencies: string[]
+  verticalPosition?: number
 }
 
 export type Lane = {
@@ -128,6 +129,14 @@ export function Timeline() {
     taskIds: string[];
     startX: number;
     originalPositions: Array<{ id: string; startDay: number }>;
+    snappedPositions?: Record<string, number>; // Track snapped vertical positions
+  } | null>(null)
+
+  // Add mouse position tracking state
+  const [currentMousePosition, setCurrentMousePosition] = useState<{ 
+    x: number;
+    y: number;
+    lastY?: number;
   } | null>(null)
 
   // Add ref to track current drag state
@@ -236,44 +245,67 @@ export function Timeline() {
 
   // Handle task dragging
   const handleTaskDragMove = (event: MouseEvent) => {
-    console.log('Timeline: handleTaskDragMove', {
-      hasDragInfo: !!dragInfoRef.current,
-      hasTimelineRef: !!timelineRef.current,
-      isDragging: dragInfoRef.current?.isDragging,
-      clientX: event.clientX
-    });
-
     if (!dragInfoRef.current || !timelineRef.current || !dragInfoRef.current.isDragging) return
 
-    // Prevent text selection and other default behaviors
     event.preventDefault()
     
-    // Calculate day width based on timeline width
+    // Update mouse position
+    setCurrentMousePosition({ 
+      x: event.clientX,
+      y: event.clientY,
+      lastY: currentMousePosition?.y
+    })
+    
     const dayWidth = getDayWidth()
     if (dayWidth === 0) return
 
-    // Calculate day difference based on mouse movement
     const deltaX = event.clientX - dragInfoRef.current.startX
     const dayDelta = Math.round(deltaX / dayWidth)
 
-    // If no change in days, don't update
-    if (dayDelta === 0) return
-
-    setTasks((prevTasks) => {
+    // Update task positions
+    setTasks(prevTasks => {
       const newTasks = [...prevTasks]
 
-      // Update only the dragged tasks without dependency checking
-      dragInfoRef.current!.taskIds.forEach((taskId) => {
+      dragInfoRef.current!.taskIds.forEach(taskId => {
         const taskIndex = newTasks.findIndex(t => t.id === taskId)
         if (taskIndex === -1) return
 
         const originalPosition = dragInfoRef.current!.originalPositions.find(p => p.id === taskId)
         if (!originalPosition) return
 
+        const task = newTasks[taskIndex]
         const newStartDay = Math.max(0, originalPosition.startDay + dayDelta)
+        
+        // Get overlapping tasks in the same lane
+        const laneTasks = newTasks.filter(t => t.laneId === task.laneId)
+        const overlappingTasks = laneTasks.filter(t => {
+          if (t.id === taskId || dragInfoRef.current?.taskIds.includes(t.id)) return false
+          const taskStart = newStartDay
+          const taskEnd = newStartDay + task.duration
+          const existingStart = t.startDay
+          const existingEnd = t.startDay + t.duration
+          return taskStart < existingEnd && taskEnd > existingStart
+        })
+
+        // When there's an overlap, automatically snap below
+        let verticalPosition = task.verticalPosition || 0;
+        if (overlappingTasks.length > 0) {
+          // Find the lowest vertical position among overlapping tasks
+          const lowestPosition = Math.max(0, ...overlappingTasks.map(t => t.verticalPosition || 0))
+          verticalPosition = lowestPosition + 1
+          
+          // Store the snapped position
+          if (!dragInfoRef.current!.snappedPositions) {
+            dragInfoRef.current!.snappedPositions = {}
+          }
+          dragInfoRef.current!.snappedPositions[taskId] = verticalPosition
+        }
+
+        // Update task with new position
         newTasks[taskIndex] = {
-          ...newTasks[taskIndex],
-          startDay: newStartDay
+          ...task,
+          startDay: newStartDay,
+          verticalPosition
         }
       })
 
@@ -283,18 +315,51 @@ export function Timeline() {
 
   // End task dragging
   const handleTaskDragEnd = (event: MouseEvent) => {
-    console.log('Timeline: handleTaskDragEnd', {
-      clientX: event.clientX,
-      dragInfo: dragInfoRef.current
+    if (!dragInfoRef.current || !currentMousePosition) {
+      return cleanupDragState();
+    }
+
+    const tasksToUpdate = dragInfoRef.current.taskIds;
+    
+    setTasks(prevTasks => {
+      const newTasks = [...prevTasks];
+      tasksToUpdate.forEach(taskId => {
+        const taskIndex = newTasks.findIndex(t => t.id === taskId);
+        if (taskIndex === -1) return;
+
+        const task = newTasks[taskIndex];
+        const originalPosition = dragInfoRef.current!.originalPositions.find(p => p.id === taskId);
+        if (!originalPosition) return;
+
+        // Calculate final horizontal position
+        const deltaX = event.clientX - dragInfoRef.current!.startX;
+        const dayDelta = Math.round(deltaX / getDayWidth());
+        const newStartDay = Math.max(0, originalPosition.startDay + dayDelta);
+
+        // Get the current virtual lane position that the task is in during drag
+        const laneTasks = newTasks.filter(t => t.laneId === task.laneId);
+        const currentVirtualLane = getTaskVirtualLane(taskId, laneTasks);
+
+        // Update the task with both its new horizontal position and preserve its current virtual lane
+        newTasks[taskIndex] = {
+          ...task,
+          startDay: newStartDay,
+          verticalPosition: currentVirtualLane
+        };
+      });
+      return newTasks;
     });
 
-    // Remove event listeners
-    document.removeEventListener("mousemove", handleTaskDragMove)
-    document.removeEventListener("mouseup", handleTaskDragEnd)
+    cleanupDragState();
+  }
 
-    // Clear drag info state and ref
-    setDragInfo(null)
-    dragInfoRef.current = null
+  // Helper to clean up drag state
+  const cleanupDragState = () => {
+    document.removeEventListener("mousemove", handleTaskDragMove);
+    document.removeEventListener("mouseup", handleTaskDragEnd);
+    setDragInfo(null);
+    dragInfoRef.current = null;
+    setCurrentMousePosition(null);
   }
 
   // Handle right-click on task for context menu
@@ -495,6 +560,61 @@ export function Timeline() {
     }
   }, [selectedTasks, tasks, lanes, editingTaskId])
 
+  // Calculate virtual lane index for a task during drag
+  const getTaskVirtualLane = (taskId: string, laneTasks: Task[]) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return 0
+
+    const isDragging = dragInfoRef.current?.taskIds.includes(taskId)
+    
+    // If task is not being dragged, use its saved position
+    if (!isDragging || !currentMousePosition) {
+      return task.verticalPosition || 0;
+    }
+
+    // For dragged tasks, calculate their current horizontal position
+    const draggedTask = {...task}
+    const currentPosition = dragInfoRef.current!.originalPositions.find(p => p.id === taskId)
+    if (currentPosition) {
+      const deltaX = currentMousePosition.x - dragInfoRef.current!.startX
+      const dayDelta = Math.round(deltaX / getDayWidth())
+      draggedTask.startDay = Math.max(0, currentPosition.startDay + dayDelta)
+    }
+
+    // Find overlapping tasks
+    const overlappingTasks = laneTasks.filter(t => {
+      if (t.id === taskId || dragInfoRef.current?.taskIds.includes(t.id)) return false
+      const taskStart = draggedTask.startDay
+      const taskEnd = draggedTask.startDay + draggedTask.duration
+      const existingStart = t.startDay
+      const existingEnd = t.startDay + t.duration
+      return taskStart < existingEnd && taskEnd > existingStart
+    })
+
+    // If we have overlaps and haven't snapped yet, snap below
+    if (overlappingTasks.length > 0 && !dragInfoRef.current?.snappedPositions?.[taskId]) {
+      // Find the lowest vertical position among overlapping tasks
+      const lowestPosition = Math.max(0, ...overlappingTasks.map(t => t.verticalPosition || 0))
+      const newPosition = lowestPosition + 1
+      
+      // Store the snapped position
+      if (!dragInfoRef.current!.snappedPositions) {
+        dragInfoRef.current!.snappedPositions = {}
+      }
+      dragInfoRef.current!.snappedPositions[taskId] = newPosition
+      return newPosition;
+    }
+
+    // If we're not overlapping anymore and had a snapped position, clear it
+    if (overlappingTasks.length === 0 && dragInfoRef.current?.snappedPositions?.[taskId] !== undefined) {
+      delete dragInfoRef.current.snappedPositions[taskId];
+      return 0;
+    }
+
+    // Otherwise maintain current position
+    return dragInfoRef.current?.snappedPositions?.[taskId] || task.verticalPosition || 0;
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between mb-4">
@@ -530,11 +650,11 @@ export function Timeline() {
         <TimelineHeader totalDays={totalDays} />
 
         <div ref={timelineRef} className="relative">
-          {/* Render swim lanes */}
           {lanes.map((lane) => (
             <SwimLane
               key={lane.id}
               lane={lane}
+              tasks={tasks}
               onToggleExpansion={() => toggleLaneExpansion(lane.id)}
               onAddTask={() => addNewTask(lane.id)}
             >
@@ -549,6 +669,9 @@ export function Timeline() {
                       isSelected={selectedTasks.includes(task.id)}
                       isEditing={editingTaskId === task.id}
                       isDragging={dragInfo?.taskIds.includes(task.id) || false}
+                      style={{
+                        top: `${getTaskVirtualLane(task.id, tasks.filter(t => t.laneId === lane.id)) * 48 + 4}px`
+                      }}
                       onClick={(e) => handleTaskClick(task.id, e)}
                       onDragStart={(e) => handleTaskDragStart(task.id, e)}
                       onContextMenu={(e) => handleTaskContextMenu(task.id, e)}

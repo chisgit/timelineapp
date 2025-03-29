@@ -12,6 +12,7 @@ interface TaskBarProps {
   isSelected: boolean
   isEditing: boolean
   isDragging?: boolean
+  style?: React.CSSProperties
   onClick: (event: React.MouseEvent) => void
   onDragStart: (event: React.MouseEvent) => void
   onContextMenu: (event: React.MouseEvent) => void
@@ -24,6 +25,7 @@ export function TaskBar({
   isSelected,
   isEditing,
   isDragging = false,
+  style,
   onClick,
   onDragStart,
   onContextMenu,
@@ -58,14 +60,12 @@ export function TaskBar({
       setEditTitle(task.title) // Reset to original
       handleRenameComplete()
     }
-
-    // Prevent event propagation to avoid triggering other handlers
     e.stopPropagation()
   }
 
   return (
     <div
-      className={`absolute top-1 bottom-1 rounded-md ${task.color} ${
+      className={`absolute h-10 rounded-md ${task.color} ${
         isSelected ? "ring-2 ring-primary ring-offset-1" : ""
       } ${isDragging ? "opacity-80 shadow-lg scale-105 z-10" : ""} 
       cursor-move flex items-center px-2 overflow-hidden text-white text-sm shadow-md 
@@ -75,7 +75,8 @@ export function TaskBar({
         width,
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        cursor: isEditing ? 'text' : 'move'
+        cursor: isEditing ? 'text' : 'move',
+        ...style
       }}
       onClick={(e) => {
         console.log('TaskBar: onClick', { taskId: task.id });
