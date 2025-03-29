@@ -1,0 +1,36 @@
+{
+  "coreFeatures": {
+    "taskManagement": {
+      "creation": 1,
+      "deletion": 1,
+      "renaming": 1,
+      "copying": 1,
+      "positioning": 1,
+      "dependencies": 1,
+      "colorCoding": 1
+    },
+    "laneManagement": {
+      "creation": 1,
+      "expansion": 1,
+      "taskGrouping": 1
+    },
+    "interactivity": {
+      "dragAndDrop": 1,
+      "contextMenus": 1,
+      "keyboardShortcuts": 1,
+      "multiSelect": 1
+    },
+    "visualization": {
+      "timelineHeader": 1,
+      "swimLanes": 1,
+      "dependencyLines": 1,
+      "milestones": 1
+    },
+    "stateManagement": {
+      "taskState": 1,
+      "laneState": 1,
+      "selectionState": 1,
+      "dragState": 1
+    }
+  }
+}
