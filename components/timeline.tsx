@@ -536,100 +536,74 @@ export function Timeline() {
     deleteTasks(selectedTasks)
   }
 
-  // Add keyboard shortcuts for deleting selected tasks
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Delete key to remove selected tasks
-      if (e.key === "Delete" && selectedTasks.length > 0 && !editingTaskId) {
-        deleteSelectedTasks()
+  // New custom hook for keyboard shortcuts
+  function useKeyboardShortcuts({
+    selectedTasks,
+    editingTaskId,
+    lanes,
+    tasks,
+    deleteSelectedTasks,
+    setSelectedTasks,
+    setContextMenu,
+  }: {
+    selectedTasks: string[];
+    editingTaskId: string | null;
+    lanes: Lane[];
+    tasks: Task[];
+    deleteSelectedTasks: () => void;
+    setSelectedTasks: React.Dispatch<React.SetStateAction<string[]>>;
+    setContextMenu: React.Dispatch<
+      React.SetStateAction<{
+        isOpen: boolean;
+        x: number;
+        y: number;
+        taskId: string;
+      } | null>
+    >;
+  }): void {
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Delete key to remove selected tasks
+        if (e.key === "Delete" && selectedTasks.length > 0 && !editingTaskId) {
+          deleteSelectedTasks();
+        }
+        // Escape key to clear selection if not editing
+        if (e.key === "Escape" && !editingTaskId) {
+          setSelectedTasks([])
+          setContextMenu(null)
+        }
+        // Ctrl+A or Cmd+A to select all visible tasks
+        if ((e.ctrlKey || e.metaKey) && e.key === "a" && !editingTaskId) {
+          e.preventDefault()
+          const expandedLaneIds = lanes.filter(lane => lane.isExpanded).map(lane => lane.id)
+          const visibleTasks = tasks.filter(task => expandedLaneIds.includes(task.laneId))
+          setSelectedTasks(visibleTasks.map(task => task.id))
+        }
       }
 
-      // Escape key to clear selection if not editing
-      if (e.key === "Escape" && !editingTaskId) {
-        setSelectedTasks([])
-        setContextMenu(null)
+      window.addEventListener("keydown", handleKeyDown)
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown)
       }
-
-      // Ctrl+A to select all visible tasks
-      if ((e.ctrlKey || e.metaKey) && e.key === "a" && !editingTaskId) {
-        e.preventDefault()
-
-        // Get all visible tasks (in expanded lanes)
-        const expandedLaneIds = lanes.filter((lane) => lane.isExpanded).map((lane) => lane.id)
-        const visibleTasks = tasks.filter((task) => expandedLaneIds.includes(task.laneId))
-
-        setSelectedTasks(visibleTasks.map((task) => task.id))
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [selectedTasks, tasks, lanes, editingTaskId])
-
-  // Calculate virtual lane index for a task during drag
-  const getTaskVirtualLane = (taskId: string, laneTasks: Task[]) => {
-    const task = tasks.find(t => t.id === taskId)
-    if (!task) return 0
-
-    const isDragging = dragInfoRef.current?.taskIds.includes(taskId)
-    
-    // If task is not being dragged, use its saved position
-    if (!isDragging || !currentMousePosition) {
-      return task.verticalPosition || 0
-    }
-
-    // Get only tasks from the same swim lane
-    const sameLaneTasks = tasks.filter(t => t.laneId === task.laneId)
-    
-    // For dragged tasks, calculate their current horizontal position
-    const draggedTask = {...task}
-    const currentPosition = dragInfoRef.current!.originalPositions.find(p => p.id === taskId)
-    if (currentPosition) {
-      const deltaX = currentMousePosition.x - dragInfoRef.current!.startX
-      const dayDelta = Math.round(deltaX / getDayWidth())
-      draggedTask.startDay = Math.max(0, currentPosition.startDay + dayDelta)
-    }
-
-    // Find overlapping tasks in the same lane
-    const overlappingTasks = sameLaneTasks.filter(t => {
-      if (t.id === taskId || dragInfoRef.current?.taskIds.includes(t.id)) return false
-      const taskStart = draggedTask.startDay
-      const taskEnd = draggedTask.startDay + draggedTask.duration
-      const existingStart = t.startDay
-      const existingEnd = t.startDay + t.duration
-      return taskStart < existingEnd && taskEnd > existingStart
-    })
-
-    // If there are no overlapping tasks, maintain current position or return to base
-    if (overlappingTasks.length === 0) {
-      return dragInfoRef.current?.snappedPositions?.[taskId] || 0
-    }
-
-    // Get current snapped position or calculate new one
-    const snappedPosition = dragInfoRef.current?.snappedPositions?.[taskId]
-    if (snappedPosition !== undefined) {
-      return snappedPosition
-    }
-
-    // Calculate new position based on available spaces
-    const occupiedPositions = new Set(sameLaneTasks
-      .filter(t => t.id !== taskId && !dragInfoRef.current?.taskIds.includes(t.id))
-      .map(t => t.verticalPosition || 0))
-    
-    let newPosition = 0
-    while (occupiedPositions.has(newPosition)) {
-      newPosition++
-    }
-
-    // Store and return the new position
-    if (!dragInfoRef.current!.snappedPositions) {
-      dragInfoRef.current!.snappedPositions = {}
-    }
-    dragInfoRef.current!.snappedPositions[taskId] = newPosition
-    return newPosition
+    }, [selectedTasks, editingTaskId, lanes, tasks, deleteSelectedTasks, setSelectedTasks, setContextMenu])
   }
+
+  // Remove: existing useEffect for keyboard shortcuts
+  // Add call to our new custom hook here:
+  useKeyboardShortcuts({
+    selectedTasks,
+    editingTaskId,
+    lanes,
+    tasks,
+    deleteSelectedTasks,
+    setSelectedTasks,
+    setContextMenu,
+  })
+
+  const getTaskVirtualLane = (taskId: string, laneTasks: Task[]): number => {
+    const task = laneTasks.find(t => t.id === taskId);
+    return task?.verticalPosition ?? 0;
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -664,7 +638,6 @@ export function Timeline() {
 
       <div className="border rounded-md bg-card">
         <TimelineHeader totalDays={totalDays} />
-
         <div ref={timelineRef} className="relative">
           {lanes.map((lane) => (
             <SwimLane
@@ -719,7 +692,7 @@ export function Timeline() {
                     lanes={lanes}
                   />
                 )
-              }),
+              })
             )
             .filter(Boolean)}
 
