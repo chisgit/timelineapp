@@ -16,16 +16,16 @@ interface SwimLaneProps {
 export function SwimLane({ lane, children, onToggleExpansion, onAddTask, tasks }: SwimLaneProps) {
   // Calculate the maximum virtual lane used in this swim lane
   const calculateLaneHeight = () => {
-    const laneTasks = tasks.filter(t => t.laneId === lane.id)
-    if (laneTasks.length === 0) return 1
+    const laneTasks = tasks.filter(t => t.laneId === lane.id);
+    if (laneTasks.length === 0) return 1;
 
     // Find the highest virtual position in use
-    const maxVirtualLane = Math.max(...laneTasks.map(t => t.verticalPosition || 0))
-    return maxVirtualLane + 1 // Add 1 since we're 0-based
-  }
+    const maxVirtualLane = Math.max(...laneTasks.map(t => t.verticalPosition || 0));
+    return maxVirtualLane + 1; // Add 1 since we're 0-based
+  };
 
-  const virtualLaneCount = lane.isExpanded ? calculateLaneHeight() : 0
-  const minHeight = Math.max(40, virtualLaneCount * 48) // 40px minimum height, 48px per virtual lane
+  const virtualLaneCount = lane.isExpanded ? calculateLaneHeight() : 0;
+  const minHeight = Math.max(40, virtualLaneCount * 48); // 40px minimum height, 48px per virtual lane
 
   return (
     <div className="flex border-b" data-lane-id={lane.id}>
@@ -50,6 +50,6 @@ export function SwimLane({ lane, children, onToggleExpansion, onAddTask, tasks }
         {children}
       </div>
     </div>
-  )
+  );
 }
 

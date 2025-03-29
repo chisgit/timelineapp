@@ -31,37 +31,38 @@ export function TaskBar({
   onContextMenu,
   onRenameComplete,
 }: TaskBarProps) {
-  const [editTitle, setEditTitle] = useState(task.title)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [editTitle, setEditTitle] = useState(task.title);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Calculate position and width based on timeline
-  const dayWidth = 100 / totalDays
-  const left = `${task.startDay * dayWidth}%`
-  const width = `${task.duration * dayWidth}%`
+  const dayWidth = 100 / totalDays;
+  const left = `${task.startDay * dayWidth}%`;
+  const width = `${task.duration * dayWidth}%`;
+  const top = `${(task.verticalPosition || 0) * 48 + 4}px`; // 48px per virtual lane, 4px margin
 
   // Focus input when editing starts
   useEffect(() => {
     if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
+      inputRef.current.focus();
+      inputRef.current.select();
     }
-  }, [isEditing])
+  }, [isEditing]);
 
   // Handle saving the new title
   const handleRenameComplete = () => {
-    onRenameComplete(task.id, editTitle)
-  }
+    onRenameComplete(task.id, editTitle);
+  };
 
   // Handle key press events
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleRenameComplete()
+      handleRenameComplete();
     } else if (e.key === "Escape") {
-      setEditTitle(task.title) // Reset to original
-      handleRenameComplete()
+      setEditTitle(task.title); // Reset to original
+      handleRenameComplete();
     }
-    e.stopPropagation()
-  }
+    e.stopPropagation();
+  };
 
   return (
     <div
@@ -73,23 +74,15 @@ export function TaskBar({
       style={{ 
         left, 
         width,
+        top,
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        cursor: isEditing ? 'text' : 'move',
         ...style
       }}
       onClick={(e) => {
-        console.log('TaskBar: onClick', { taskId: task.id });
         onClick(e);
       }}
       onMouseDown={(e) => {
-        console.log('TaskBar: onMouseDown', { 
-          taskId: task.id, 
-          isEditing,
-          button: e.button,
-          clientX: e.clientX,
-          clientY: e.clientY
-        });
         if (!isEditing) {
           e.preventDefault();
           e.stopPropagation();
@@ -97,7 +90,6 @@ export function TaskBar({
         }
       }}
       onContextMenu={(e) => {
-        console.log('TaskBar: onContextMenu', { taskId: task.id });
         onContextMenu(e);
       }}
     >
@@ -116,6 +108,6 @@ export function TaskBar({
         <span className="truncate">{task.title}</span>
       )}
     </div>
-  )
+  );
 }
 
