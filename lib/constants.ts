@@ -1,0 +1,85 @@
+export const INITIAL_LANES = [
+  { id: "lane-1", title: "Design", isExpanded: true },
+  { id: "lane-2", title: "Development", isExpanded: true },
+  { id: "lane-3", title: "Testing", isExpanded: true },
+]
+
+export const INITIAL_TASKS = [
+  {
+    id: "task-1",
+    title: "Research",
+    startDay: 0,
+    duration: 5,
+    color: "bg-blue-500",
+    laneId: "lane-1",
+    dependencies: [],
+  },
+  {
+    id: "task-2",
+    title: "Wireframes",
+    startDay: 5,
+    duration: 7,
+    color: "bg-blue-500",
+    laneId: "lane-1",
+    dependencies: ["task-1"],
+  },
+  {
+    id: "task-3",
+    title: "UI Design",
+    startDay: 12,
+    duration: 10,
+    color: "bg-blue-500",
+    laneId: "lane-1",
+    dependencies: ["task-2"],
+  },
+  {
+    id: "task-4",
+    title: "Frontend Setup",
+    startDay: 8,
+    duration: 6,
+    color: "bg-green-500",
+    laneId: "lane-2",
+    dependencies: ["task-2"],
+  },
+  {
+    id: "task-5",
+    title: "Backend API",
+    startDay: 14,
+    duration: 12,
+    color: "bg-green-500",
+    laneId: "lane-2",
+    dependencies: ["task-4"],
+  },
+  {
+    id: "task-6",
+    title: "Integration",
+    startDay: 26,
+    duration: 8,
+    color: "bg-green-500",
+    laneId: "lane-2",
+    dependencies: ["task-5", "task-3"],
+  },
+  {
+    id: "task-7",
+    title: "Unit Tests",
+    startDay: 20,
+    duration: 10,
+    color: "bg-purple-500",
+    laneId: "lane-3",
+    dependencies: [],
+  },
+  {
+    id: "task-8",
+    title: "QA Testing",
+    startDay: 34,
+    duration: 8,
+    color: "bg-purple-500",
+    laneId: "lane-3",
+    dependencies: ["task-6", "task-7"],
+  },
+]
+
+export const INITIAL_MILESTONES = [
+  { id: "milestone-1", title: "Design Complete", day: 22 },
+  { id: "milestone-2", title: "MVP Release", day: 42 },
+]
