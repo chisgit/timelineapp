@@ -51,6 +51,12 @@ type DragInfo = {
   snappedPositions?: Record<string, number>
 } | null
 
+type MousePosition = {
+  x: number
+  y: number
+  lastY?: number
+} | null
+
 export function Timeline() {
   const [lanes, setLanes] = useState<Lane[]>([
     { id: "lane-1", title: "Design", isExpanded: true },
@@ -142,11 +148,7 @@ export function Timeline() {
   const [dragInfo, setDragInfo] = useState<DragInfo>(null)
 
   // Add mouse position tracking state
-  const [currentMousePosition, setCurrentMousePosition] = useState<{ 
-    x: number;
-    y: number;
-    lastY?: number;
-  } | null>(null)
+  const [currentMousePosition, setCurrentMousePosition] = useState<MousePosition>(null)
 
   // Add ref to track current drag state
   const dragInfoRef = useRef<typeof dragInfo>(null)
