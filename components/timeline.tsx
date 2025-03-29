@@ -12,6 +12,7 @@ import { TimelineHeader } from "@/components/timeline-header"
 import { SwimLane } from "@/components/swim-lane"
 import { TaskContextMenu } from "@/components/task-context-menu"
 import { generateId } from "@/lib/utils"
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export type Task = {
   id: string
@@ -534,58 +535,6 @@ export function Timeline() {
   const deleteSelectedTasks = () => {
     if (selectedTasks.length === 0) return
     deleteTasks(selectedTasks)
-  }
-
-  // New custom hook for keyboard shortcuts
-  function useKeyboardShortcuts({
-    selectedTasks,
-    editingTaskId,
-    lanes,
-    tasks,
-    deleteSelectedTasks,
-    setSelectedTasks,
-    setContextMenu,
-  }: {
-    selectedTasks: string[];
-    editingTaskId: string | null;
-    lanes: Lane[];
-    tasks: Task[];
-    deleteSelectedTasks: () => void;
-    setSelectedTasks: React.Dispatch<React.SetStateAction<string[]>>;
-    setContextMenu: React.Dispatch<
-      React.SetStateAction<{
-        isOpen: boolean;
-        x: number;
-        y: number;
-        taskId: string;
-      } | null>
-    >;
-  }): void {
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        // Delete key to remove selected tasks
-        if (e.key === "Delete" && selectedTasks.length > 0 && !editingTaskId) {
-          deleteSelectedTasks();
-        }
-        // Escape key to clear selection if not editing
-        if (e.key === "Escape" && !editingTaskId) {
-          setSelectedTasks([])
-          setContextMenu(null)
-        }
-        // Ctrl+A or Cmd+A to select all visible tasks
-        if ((e.ctrlKey || e.metaKey) && e.key === "a" && !editingTaskId) {
-          e.preventDefault()
-          const expandedLaneIds = lanes.filter(lane => lane.isExpanded).map(lane => lane.id)
-          const visibleTasks = tasks.filter(task => expandedLaneIds.includes(task.laneId))
-          setSelectedTasks(visibleTasks.map(task => task.id))
-        }
-      }
-
-      window.addEventListener("keydown", handleKeyDown)
-      return () => {
-        window.removeEventListener("keydown", handleKeyDown)
-      }
-    }, [selectedTasks, editingTaskId, lanes, tasks, deleteSelectedTasks, setSelectedTasks, setContextMenu])
   }
 
   // Remove: existing useEffect for keyboard shortcuts
