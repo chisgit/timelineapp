@@ -249,7 +249,6 @@ export function Timeline() {
 
     event.preventDefault()
     
-    // Update mouse position
     setCurrentMousePosition({ 
       x: event.clientX,
       y: event.clientY,
@@ -276,7 +275,7 @@ export function Timeline() {
         const task = newTasks[taskIndex]
         const newStartDay = Math.max(0, originalPosition.startDay + dayDelta)
         
-        // Get overlapping tasks in the same lane
+        // Only get tasks from the same swim lane
         const laneTasks = newTasks.filter(t => t.laneId === task.laneId)
         const overlappingTasks = laneTasks.filter(t => {
           if (t.id === taskId || dragInfoRef.current?.taskIds.includes(t.id)) return false
@@ -285,14 +284,23 @@ export function Timeline() {
           const existingStart = t.startDay
           const existingEnd = t.startDay + t.duration
           return taskStart < existingEnd && taskEnd > existingStart
-        })
+        }).sort((a, b) => (a.verticalPosition || 0) - (b.verticalPosition || 0))
 
-        // When there's an overlap, automatically snap below
-        let verticalPosition = task.verticalPosition || 0;
+        let verticalPosition = task.verticalPosition || 0
+        
         if (overlappingTasks.length > 0) {
-          // Find the lowest vertical position among overlapping tasks
-          const lowestPosition = Math.max(0, ...overlappingTasks.map(t => t.verticalPosition || 0))
-          verticalPosition = lowestPosition + 1
+          // Find all occupied positions in this lane
+          const occupiedPositions = new Set(laneTasks
+            .filter(t => t.id !== taskId && !dragInfoRef.current?.taskIds.includes(t.id))
+            .map(t => t.verticalPosition || 0))
+          
+          // Find the first available position
+          let newPosition = 0
+          while (occupiedPositions.has(newPosition)) {
+            newPosition++
+          }
+          
+          verticalPosition = newPosition
           
           // Store the snapped position
           if (!dragInfoRef.current!.snappedPositions) {
@@ -569,9 +577,12 @@ export function Timeline() {
     
     // If task is not being dragged, use its saved position
     if (!isDragging || !currentMousePosition) {
-      return task.verticalPosition || 0;
+      return task.verticalPosition || 0
     }
 
+    // Get only tasks from the same swim lane
+    const sameLaneTasks = tasks.filter(t => t.laneId === task.laneId)
+    
     // For dragged tasks, calculate their current horizontal position
     const draggedTask = {...task}
     const currentPosition = dragInfoRef.current!.originalPositions.find(p => p.id === taskId)
@@ -581,8 +592,8 @@ export function Timeline() {
       draggedTask.startDay = Math.max(0, currentPosition.startDay + dayDelta)
     }
 
-    // Find overlapping tasks
-    const overlappingTasks = laneTasks.filter(t => {
+    // Find overlapping tasks in the same lane
+    const overlappingTasks = sameLaneTasks.filter(t => {
       if (t.id === taskId || dragInfoRef.current?.taskIds.includes(t.id)) return false
       const taskStart = draggedTask.startDay
       const taskEnd = draggedTask.startDay + draggedTask.duration
@@ -591,28 +602,33 @@ export function Timeline() {
       return taskStart < existingEnd && taskEnd > existingStart
     })
 
-    // If we have overlaps and haven't snapped yet, snap below
-    if (overlappingTasks.length > 0 && !dragInfoRef.current?.snappedPositions?.[taskId]) {
-      // Find the lowest vertical position among overlapping tasks
-      const lowestPosition = Math.max(0, ...overlappingTasks.map(t => t.verticalPosition || 0))
-      const newPosition = lowestPosition + 1
-      
-      // Store the snapped position
-      if (!dragInfoRef.current!.snappedPositions) {
-        dragInfoRef.current!.snappedPositions = {}
-      }
-      dragInfoRef.current!.snappedPositions[taskId] = newPosition
-      return newPosition;
+    // If there are no overlapping tasks, maintain current position or return to base
+    if (overlappingTasks.length === 0) {
+      return dragInfoRef.current?.snappedPositions?.[taskId] || 0
     }
 
-    // If we're not overlapping anymore and had a snapped position, clear it
-    if (overlappingTasks.length === 0 && dragInfoRef.current?.snappedPositions?.[taskId] !== undefined) {
-      delete dragInfoRef.current.snappedPositions[taskId];
-      return 0;
+    // Get current snapped position or calculate new one
+    const snappedPosition = dragInfoRef.current?.snappedPositions?.[taskId]
+    if (snappedPosition !== undefined) {
+      return snappedPosition
     }
 
-    // Otherwise maintain current position
-    return dragInfoRef.current?.snappedPositions?.[taskId] || task.verticalPosition || 0;
+    // Calculate new position based on available spaces
+    const occupiedPositions = new Set(sameLaneTasks
+      .filter(t => t.id !== taskId && !dragInfoRef.current?.taskIds.includes(t.id))
+      .map(t => t.verticalPosition || 0))
+    
+    let newPosition = 0
+    while (occupiedPositions.has(newPosition)) {
+      newPosition++
+    }
+
+    // Store and return the new position
+    if (!dragInfoRef.current!.snappedPositions) {
+      dragInfoRef.current!.snappedPositions = {}
+    }
+    dragInfoRef.current!.snappedPositions[taskId] = newPosition
+    return newPosition
   }
 
   return (
