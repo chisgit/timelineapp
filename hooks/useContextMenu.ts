@@ -1,31 +1,28 @@
-import { useState } from "react"
-import { ContextMenu } from "@/lib/types"
+import { useRef } from "react"
+import type { ContextMenuState } from "./contextMenu/useContextMenuState"
+import { useContextMenuState } from "./contextMenu/useContextMenuState"
+import { useContextMenuHandlers } from "./contextMenu/useContextMenuHandlers"
+import { adjustMenuPosition } from "./contextMenu/contextMenuUtils"
 
 export function useContextMenu() {
-  const [contextMenu, setContextMenu] = useState<ContextMenu>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const contextMenuState = useContextMenuState()
+  const { contextMenu, openMenu, closeMenu } = contextMenuState
 
-  const handleTaskContextMenu = (taskId: string, event: React.MouseEvent, selectedTasks: string[], setSelectedTasks: (tasks: string[]) => void) => {
-    event.preventDefault()
-
-    if (!selectedTasks.includes(taskId)) {
-      setSelectedTasks([taskId])
+  const { handleTaskContextMenu } = useContextMenuHandlers({
+    menuRef,
+    state: contextMenuState,
+    onTaskSelect: (taskId: string) => {
+      const position = { x: contextMenu?.x || 0, y: contextMenu?.y || 0 }
+      const adjustedPosition = adjustMenuPosition<HTMLDivElement>(position, menuRef)
+      openMenu(adjustedPosition.x, adjustedPosition.y, taskId)
     }
-
-    setContextMenu({
-      isOpen: true,
-      x: event.clientX,
-      y: event.clientY,
-      taskId,
-    })
-  }
-
-  const closeContextMenu = () => {
-    setContextMenu(null)
-  }
+  })
 
   return {
+    menuRef,
     contextMenu,
     handleTaskContextMenu,
-    closeContextMenu,
+    closeContextMenu: closeMenu
   }
 }

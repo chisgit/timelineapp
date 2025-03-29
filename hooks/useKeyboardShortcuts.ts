@@ -1,22 +1,17 @@
-import { useEffect } from "react";
-import type { Lane, Task } from "@/components/timeline";
-
-type ContextMenu = {
-  isOpen: boolean
-  x: number
-  y: number
-  taskId: string
-} | null
+import { useEffect } from "react"
+import type { Lane, Task } from "@/lib/types"
+import type { ContextMenu } from "@/lib/types"
+import { createKeyboardHandler } from "./keyboard/keyboardHandlers"
 
 type KeyboardShortcutsProps = {
-  selectedTasks: string[];
-  editingTaskId: string | null;
-  lanes: Lane[];
-  tasks: Task[];
-  deleteSelectedTasks: () => void;
-  setSelectedTasks: (tasks: string[]) => void;
-  setContextMenu: (contextMenu: ContextMenu) => void;
-};
+  selectedTasks: string[]
+  editingTaskId: string | null
+  lanes: Lane[]
+  tasks: Task[]
+  deleteSelectedTasks: () => void
+  setSelectedTasks: (tasks: string[]) => void
+  setContextMenu: (contextMenu: ContextMenu) => void
+}
 
 export function useKeyboardShortcuts({
   selectedTasks,
@@ -28,20 +23,18 @@ export function useKeyboardShortcuts({
   setContextMenu,
 }: KeyboardShortcutsProps) {
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (editingTaskId) return;
-
-      if (event.key === "Delete" || event.key === "Backspace") {
-        deleteSelectedTasks();
-      } else if (event.key === "Escape") {
-        setSelectedTasks([]);
-        setContextMenu(null);
+    const handleKeyDown = createKeyboardHandler(
+      { selectedTasks, editingTaskId, lanes, tasks },
+      { 
+        deleteSelectedTasks,
+        setSelectedTasks,
+        clearContextMenu: () => setContextMenu(null)
       }
-    };
+    )
 
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown)
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [editingTaskId, deleteSelectedTasks, setSelectedTasks, setContextMenu]);
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [selectedTasks, editingTaskId, lanes, tasks, deleteSelectedTasks, setSelectedTasks, setContextMenu])
 }
