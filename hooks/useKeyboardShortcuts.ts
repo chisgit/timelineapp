@@ -1,6 +1,13 @@
 import { useEffect } from "react";
 import type { Lane, Task } from "@/components/timeline";
 
+type ContextMenu = {
+  isOpen: boolean
+  x: number
+  y: number
+  taskId: string
+} | null
+
 type KeyboardShortcutsProps = {
   selectedTasks: string[];
   editingTaskId: string | null;
@@ -8,7 +15,7 @@ type KeyboardShortcutsProps = {
   tasks: Task[];
   deleteSelectedTasks: () => void;
   setSelectedTasks: (tasks: string[]) => void;
-  setContextMenu: (contextMenu: any) => void;
+  setContextMenu: (contextMenu: ContextMenu) => void;
 };
 
 export function useKeyboardShortcuts({

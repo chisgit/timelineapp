@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useRef, useState, useEffect } from "react"
 import { Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,7 +11,7 @@ import { TimelineHeader } from "@/components/timeline-header"
 import { SwimLane } from "@/components/swim-lane"
 import { TaskContextMenu } from "@/components/task-context-menu"
 import { generateId } from "@/lib/utils"
-import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts"
 
 export type Task = {
   id: string
@@ -36,6 +35,13 @@ export type TimelineMilestone = {
   title: string
   day: number
 }
+
+type ContextMenu = {
+  isOpen: boolean
+  x: number
+  y: number
+  taskId: string
+} | null
 
 export function Timeline() {
   const [lanes, setLanes] = useState<Lane[]>([
@@ -144,12 +150,7 @@ export function Timeline() {
   const dragInfoRef = useRef<typeof dragInfo>(null)
 
   const timelineRef = useRef<HTMLDivElement>(null)
-  const [contextMenu, setContextMenu] = useState<{
-    isOpen: boolean
-    x: number
-    y: number
-    taskId: string
-  } | null>(null)
+  const [contextMenu, setContextMenu] = useState<ContextMenu>(null)
 
   // Add state for tracking which task is being edited
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
