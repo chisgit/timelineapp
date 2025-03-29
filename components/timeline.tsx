@@ -250,19 +250,11 @@ export function Timeline() {
     
     // Calculate day width based on timeline width
     const dayWidth = getDayWidth()
-    console.log('Timeline: dayWidth calculated', { dayWidth });
     if (dayWidth === 0) return
 
     // Calculate day difference based on mouse movement
     const deltaX = event.clientX - dragInfoRef.current.startX
     const dayDelta = Math.round(deltaX / dayWidth)
-
-    console.log('Timeline: movement calculation', {
-      deltaX,
-      dayDelta,
-      startX: dragInfoRef.current.startX,
-      currentX: event.clientX
-    });
 
     // If no change in days, don't update
     if (dayDelta === 0) return
@@ -270,7 +262,7 @@ export function Timeline() {
     setTasks((prevTasks) => {
       const newTasks = [...prevTasks]
 
-      // First, update all dragged tasks
+      // Update only the dragged tasks without dependency checking
       dragInfoRef.current!.taskIds.forEach((taskId) => {
         const taskIndex = newTasks.findIndex(t => t.id === taskId)
         if (taskIndex === -1) return
@@ -283,44 +275,6 @@ export function Timeline() {
           ...newTasks[taskIndex],
           startDay: newStartDay
         }
-      })
-
-      // Then, process dependencies recursively
-      const processedTasks = new Set<string>()
-      
-      const updateDependentTasks = (taskId: string) => {
-        if (processedTasks.has(taskId)) return
-        processedTasks.add(taskId)
-
-        const dependentTasks = newTasks.filter(t => t.dependencies.includes(taskId))
-        dependentTasks.forEach(depTask => {
-          if (dragInfoRef.current!.taskIds.includes(depTask.id)) return // Skip if task is being dragged
-
-          const depTaskIndex = newTasks.findIndex(t => t.id === depTask.id)
-          if (depTaskIndex === -1) return
-
-          // Calculate minimum start day based on all dependencies
-          const minStartDay = Math.max(
-            ...depTask.dependencies.map(depId => {
-              const dep = newTasks.find(t => t.id === depId)
-              return dep ? dep.startDay + dep.duration : 0
-            })
-          )
-
-          if (minStartDay > depTask.startDay) {
-            newTasks[depTaskIndex] = {
-              ...newTasks[depTaskIndex],
-              startDay: minStartDay
-            }
-            // Recursively update this task's dependents
-            updateDependentTasks(depTask.id)
-          }
-        })
-      }
-
-      // Update all dependent tasks
-      dragInfoRef.current!.taskIds.forEach(taskId => {
-        updateDependentTasks(taskId)
       })
 
       return newTasks

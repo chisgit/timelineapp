@@ -31,20 +31,10 @@ export function DependencyLine({ sourceTask, targetTask, totalDays, lanes }: Dep
 
     if (sourceLaneIndex === targetLaneIndex) {
       // Same lane - simple horizontal line
-      path = `
-        M ${sourceEndX}% 50%
-        L ${targetStartX}% 50%
-      `
+      path = `M${sourceEndX},50 L${targetStartX},50`
     } else {
       // Different lanes - line with vertical segment
-      path = `
-        M ${sourceEndX}% 50%
-        L ${midX}% 50%
-        L ${midX}% ${targetLaneIndex > sourceLaneIndex ? "100%" : "0%"}
-        L ${midX}% ${targetLaneIndex > sourceLaneIndex ? "0%" : "100%"}
-        L ${midX}% 50%
-        L ${targetStartX}% 50%
-      `
+      path = `M${sourceEndX},50 L${midX},50 L${midX},${targetLaneIndex > sourceLaneIndex ? '100 L' + midX + ',0' : '0 L' + midX + ',100'} L${midX},50 L${targetStartX},50`
     }
   } else {
     // Source ends after target starts (unusual case)
@@ -53,34 +43,15 @@ export function DependencyLine({ sourceTask, targetTask, totalDays, lanes }: Dep
 
     if (sourceLaneIndex === targetLaneIndex) {
       // Same lane
-      path = `
-        M ${sourceEndX}% 50%
-        L ${sourceEndX + buffer}% 50%
-        L ${sourceEndX + buffer}% 25%
-        L ${targetStartX - buffer}% 25%
-        L ${targetStartX - buffer}% 50%
-        L ${targetStartX}% 50%
-      `
+      path = `M${sourceEndX},50 L${sourceEndX + buffer},50 L${sourceEndX + buffer},25 L${targetStartX - buffer},25 L${targetStartX - buffer},50 L${targetStartX},50`
     } else {
       // Different lanes
-      path = `
-        M ${sourceEndX}% 50%
-        L ${sourceEndX + buffer}% 50%
-        L ${sourceEndX + buffer}% ${targetLaneIndex > sourceLaneIndex ? "100%" : "0%"}
-        L ${targetStartX - buffer}% ${targetLaneIndex > sourceLaneIndex ? "0%" : "100%"}
-        L ${targetStartX - buffer}% 50%
-        L ${targetStartX}% 50%
-      `
+      path = `M${sourceEndX},50 L${sourceEndX + buffer},50 L${sourceEndX + buffer},${targetLaneIndex > sourceLaneIndex ? '100 L' : '0 L'}${targetStartX - buffer},${targetLaneIndex > sourceLaneIndex ? '0' : '100'} L${targetStartX - buffer},50 L${targetStartX},50`
     }
   }
 
   // Add arrow head
-  const arrowPath = `
-    M ${targetStartX}% 50%
-    L ${targetStartX - 0.5}% 45%
-    L ${targetStartX - 0.5}% 55%
-    Z
-  `
+  const arrowPath = `M${targetStartX},50 L${targetStartX - 0.5},45 L${targetStartX - 0.5},55 Z`
 
   return (
     <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
