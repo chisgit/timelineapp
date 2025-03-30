@@ -1,0 +1,11 @@
+rules:
+  - name: "System Instructions"
+    description: "Ensure system instructions are applied before each prompt"
+    type: "pre_prompt"
+    conditions:
+      - always: true
+    actions:
+      - type: "execute"
+        command: "system_instructions"
+        args:
+          file: "SYSTEM_INSTRUCTIONS.md"
