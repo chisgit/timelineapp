@@ -5,8 +5,11 @@ export const getDayWidth = (timelineWidth: number, totalDays: number) => {
 }
 
 export const getTaskVirtualLane = (taskId: string, laneTasks: Task[]): number => {
-  const task = laneTasks.find(t => t.id === taskId)
-  return task?.verticalPosition ?? 0
+  const task = laneTasks.find(t => t.id === taskId);
+  if (!task) return 0; // Default to first virtual lane if task not found
+  
+  // Ensure verticalPosition is at least 0 (first virtual lane)
+  return task.verticalPosition ?? 0;
 }
 
 export const getOverlappingTasks = (tasks: Task[], targetTask: Task, startDay: number, verticalPosition: number): Task[] => {

@@ -108,10 +108,24 @@ export function Timeline() {
                   .filter((task) => task.laneId === lane.id)
                   .map((task) => {
                     const virtualLanePosition = getTaskVirtualLane(task.id, tasks.filter(t => t.laneId === lane.id));
-                    const isOverlapping = dragInfo?.taskIds.includes(task.id) && tasks.some(t => 
+                    
+                    // Calculate if the task is being dragged
+                    const isBeingDragged = dragInfo?.taskIds.includes(task.id) || false;
+                    
+                    // Calculate if this task overlaps with any other task in the same lane
+                    const isOverlapping = tasks.some(t => 
                       t.laneId === task.laneId && 
                       t.id !== task.id && 
                       t.verticalPosition === task.verticalPosition &&
+                      t.startDay < (task.startDay + task.duration) &&
+                      (t.startDay + t.duration) > task.startDay
+                    );
+                    
+                    // Also check for potential overlaps during drag operations
+                    const hasPotentialOverlap = isBeingDragged && tasks.some(t => 
+                      t.laneId === task.laneId && 
+                      t.id !== task.id &&
+                      !dragInfo?.taskIds.includes(t.id) &&
                       t.startDay < (task.startDay + task.duration) &&
                       (t.startDay + t.duration) > task.startDay
                     );
@@ -122,7 +136,7 @@ export function Timeline() {
                         position: 'absolute',
                         width: '100%'
                       }}>
-                        {isOverlapping && (
+                        {(isOverlapping || hasPotentialOverlap) && (
                           <TaskOverlapIndicator
                             position={"above"}
                             isVisible={true}
