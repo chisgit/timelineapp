@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Task, DragInfo, MousePosition } from "@/lib/types";
 import { getDayWidth, getTaskVirtualLane } from "./taskUtils";
+import { getOverlappingTasks, createNewVirtualLane } from "./taskUtils";
 
 export function useTaskDrag(
   tasks: Task[],
@@ -20,17 +21,19 @@ export function useTaskDrag(
     event.preventDefault();
 
     const tasksToDrag = selectedTasks.includes(taskId) ? selectedTasks : [taskId];
-    const originalPositions = tasksToDrag.map((id) => {
-      const task = tasks.find((t) => t.id === id);
-      return { id, startDay: task?.startDay || 0, verticalPosition: task?.verticalPosition || 0 };
-    });
-
     const dragInfoValue = {
       isDragging: true,
       taskIds: tasksToDrag,
       startX: event.clientX,
       startY: event.clientY,
-      originalPositions,
+      originalPositions: tasksToDrag.map((id) => {
+        const task = tasks.find((t) => t.id === id);
+        return {
+          id,
+          startDay: task?.startDay || 0,
+          verticalPosition: task?.verticalPosition || 0,
+        };
+      }),
     };
 
     setDragInfo(dragInfoValue);
@@ -83,6 +86,12 @@ export function useTaskDrag(
         const newStartDay = Math.max(0, originalPosition.startDay + dayDelta);
         const newVerticalPosition = Math.max(0, originalPosition.verticalPosition + verticalDelta);
 
+        // Detect overlapping tasks
+        const overlappingTasks = getOverlappingTasks(newTasks, task, newStartDay, newVerticalPosition);
+        if (overlappingTasks.length > 1) {
+          createNewVirtualLane(newTasks, overlappingTasks);
+        }
+
         newTasks[taskIndex] = {
           ...task,
           startDay: newStartDay,
@@ -111,5 +120,6 @@ export function useTaskDrag(
   return {
     dragInfo,
     handleTaskDragStart,
+    handleTaskDragMove, // Ensure this is exported
   };
 }

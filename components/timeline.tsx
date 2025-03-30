@@ -14,6 +14,8 @@ import { useTasks } from "../hooks/useTasks"
 import { useLanes } from "../hooks/useLanes"
 import { useMilestones } from "../hooks/useMilestones"
 import { useContextMenu } from "../hooks/useContextMenu"
+import { useTaskDrag } from "../hooks/useTaskDrag"
+import TaskOverlapIndicator from "./task-overlap-indicator"
 import { INITIAL_LANES, INITIAL_TASKS, INITIAL_MILESTONES } from "@/lib/constants"
 
 export function Timeline() {
@@ -104,23 +106,41 @@ export function Timeline() {
               {lane.isExpanded &&
                 tasks
                   .filter((task) => task.laneId === lane.id)
-                  .map((task) => (
-                    <TaskBar
-                      key={task.id}
-                      task={task}
-                      totalDays={totalDays}
-                      isSelected={selectedTasks.includes(task.id)}
-                      isEditing={editingTaskId === task.id}
-                      isDragging={dragInfo?.taskIds.includes(task.id) || false}
-                      style={{
-                        top: `${getTaskVirtualLane(task.id, tasks.filter(t => t.laneId === lane.id)) * 48 + 4}px`
-                      }}
-                      onClick={(e) => handleTaskClick(task.id, e)}
-                      onDragStart={(e) => handleTaskDragStart(task.id, e, timelineRef.current?.getBoundingClientRect().width || 0, totalDays)}
-                      onContextMenu={(e) => handleTaskContextMenu(task.id, e, selectedTasks, setSelectedTasks)}
-                      onRenameComplete={handleRenameComplete}
-                    />
-                  ))}
+                  .map((task) => {
+                    const isOverlapping = dragInfo?.taskIds.includes(task.id) && tasks.some(t => 
+                      t.laneId === task.laneId && 
+                      t.id !== task.id && 
+                      t.verticalPosition === task.verticalPosition &&
+                      t.startDay < (task.startDay + task.duration) &&
+                      (t.startDay + t.duration) > task.startDay
+                    );
+
+                    return (
+                      <div key={task.id} className="relative">
+                        {isOverlapping && (
+                          <TaskOverlapIndicator
+                            position={"above"} // or "below" based on logic
+                            isVisible={true}
+                          />
+                        )}
+                        <TaskBar
+                          task={task}
+                          totalDays={totalDays}
+                          isSelected={selectedTasks.includes(task.id)}
+                          isEditing={editingTaskId === task.id}
+                          isDragging={dragInfo?.taskIds.includes(task.id) || false}
+                          isOverlapping={isOverlapping}
+                          style={{
+                            top: `${getTaskVirtualLane(task.id, tasks.filter(t => t.laneId === lane.id)) * 48 + 4}px`
+                          }}
+                          onClick={(e) => handleTaskClick(task.id, e)}
+                          onDragStart={(e) => handleTaskDragStart(task.id, e, timelineRef.current?.getBoundingClientRect().width || 0, totalDays)}
+                          onContextMenu={(e) => handleTaskContextMenu(task.id, e, selectedTasks, setSelectedTasks)}
+                          onRenameComplete={handleRenameComplete}
+                        />
+                      </div>
+                    );
+                  })}
             </SwimLane>
           ))}
 
@@ -170,4 +190,3 @@ export function Timeline() {
     </div>
   )
 }
-
