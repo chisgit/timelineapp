@@ -29,8 +29,10 @@ export function Timeline() {
     selectedTasks,
     editingTaskId,
     dragInfo,
+    currentMousePosition,
     handleTaskClick,
     handleTaskDragStart,
+    handleTaskDragEnd,
     handleRenameTask,
     handleRenameComplete,
     deleteTasks,
@@ -109,26 +111,66 @@ export function Timeline() {
                   .map((task) => {
                     const virtualLanePosition = getTaskVirtualLane(task.id, tasks.filter(t => t.laneId === lane.id));
                     
+                    // Only log debug info if the task is selected or being dragged
+                    const shouldLogInfo = selectedTasks.includes(task.id) || dragInfo?.taskIds.includes(task.id);
+                    
                     // Calculate if the task is being dragged
                     const isBeingDragged = dragInfo?.taskIds.includes(task.id) || false;
+                    const isMovingVertically = isBeingDragged && dragInfo && currentMousePosition && 
+                      Math.abs(dragInfo.startY - currentMousePosition.y) > 10; // 10px threshold for vertical movement
                     
                     // Calculate if this task overlaps with any other task in the same lane AND the same virtual lane position
-                    const isOverlapping = tasks.some(t => 
-                      t.laneId === task.laneId && 
-                      t.id !== task.id && 
-                      getTaskVirtualLane(t.id, tasks.filter(tt => tt.laneId === lane.id)) === virtualLanePosition &&
-                      t.startDay < (task.startDay + task.duration) &&
-                      (t.startDay + t.duration) > task.startDay
-                    );
+                    const isOverlapping = !isMovingVertically && tasks.some(t => {
+                      // Get the current virtual lane positions directly from tasks array
+                      // This ensures we're always using the most up-to-date positions
+                      const thisVirtualLane = task.verticalPosition ?? 0;
+                      const otherVirtualLane = t.verticalPosition ?? 0;
+                      
+                      // Only check for overlaps if tasks are in the same swimlane and virtual lane
+                      if (t.laneId !== task.laneId || 
+                          t.id === task.id || 
+                          thisVirtualLane !== otherVirtualLane) {
+                        return false;
+                      }
+
+                      // More precise time-based overlap check
+                      const taskStart = task.startDay;
+                      const taskEnd = task.startDay + task.duration;
+                      const otherStart = t.startDay;
+                      const otherEnd = t.startDay + t.duration;
+                      
+                      // Two tasks overlap if one starts before the other ends
+                      // AND the second starts before the first ends
+                      const timeOverlap = taskStart < otherEnd && otherStart < taskEnd;
+
+                      // Only log if this is the selected/dragged task or the task it overlaps with
+                      if (shouldLogInfo || selectedTasks.includes(t.id) || dragInfo?.taskIds.includes(t.id)) {
+                        console.log(`[DEBUG] Overlap Check - Task ${task.id} with ${t.id}: 
+                          Same Lane: true, 
+                          Task VL: ${thisVirtualLane}, 
+                          Other VL: ${otherVirtualLane}, 
+                          Time Range: ${taskStart}-${taskEnd} vs ${otherStart}-${otherEnd}, 
+                          Time Overlap: ${timeOverlap}`);
+                      }
+                      
+                      return timeOverlap;
+                    });
                     
                     // Also check for potential overlaps during drag operations, but only within the same virtual lane
                     const hasPotentialOverlap = isBeingDragged && tasks.some(t => 
+                      // Tasks must be in the same swimlane
                       t.laneId === task.laneId && 
+                      // Not comparing with itself
                       t.id !== task.id &&
+                      // Don't check against other tasks being dragged
                       !dragInfo?.taskIds.includes(t.id) &&
-                      getTaskVirtualLane(t.id, tasks.filter(tt => tt.laneId === lane.id)) === virtualLanePosition &&
+                      // Must be in the same virtual lane
+                      (getTaskVirtualLane(t.id, tasks.filter(tt => tt.laneId === lane.id)) === virtualLanePosition) &&
+                      // Tasks must actually overlap in time (one starts before the other ends)
                       t.startDay < (task.startDay + task.duration) &&
-                      (t.startDay + t.duration) > task.startDay
+                      (t.startDay + t.duration) > task.startDay &&
+                      // Ensure they're not just touching at the endpoints
+                      !(t.startDay + t.duration === task.startDay || task.startDay + task.duration === t.startDay)
                     );
 
                     return (
@@ -137,7 +179,8 @@ export function Timeline() {
                         position: 'absolute',
                         width: '100%'
                       }}>
-                        {(isOverlapping || hasPotentialOverlap) && (
+                        {/* Only show overlap indicator when tasks actually overlap and aren't just being manipulated */}
+                        {((isOverlapping && !isBeingDragged) || hasPotentialOverlap) && (
                           <TaskOverlapIndicator
                             position={"above"}
                             isVisible={true}

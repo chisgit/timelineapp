@@ -18,6 +18,7 @@ export function useTasks(initialTasks: Task[] = []) {
 
   const {
     dragInfo,
+    currentMousePosition,
     handleTaskDragStart
   } = useTaskDrag(tasks, setTasks, selectedTasks)
 
@@ -44,6 +45,7 @@ export function useTasks(initialTasks: Task[] = []) {
     selectedTasks,
     editingTaskId,
     dragInfo,
+    currentMousePosition,
     handleTaskClick,
     handleTaskDragStart,
     handleRenameTask,

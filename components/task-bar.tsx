@@ -1,113 +1,103 @@
-"use client"
+import React, { useState, useRef } from "react"
+import { Task } from "@/lib/types"
 
-import type React from "react"
-
-import type { Task } from "./timeline"
-import { useEffect, useRef, useState } from "react"
-import { Input } from "@/components/ui/input"
-
-interface TaskBarProps {
+export interface TaskBarProps {
   task: Task
   totalDays: number
-  isSelected: boolean
-  isEditing: boolean
+  isSelected?: boolean
+  isEditing?: boolean
   isDragging?: boolean
   style?: React.CSSProperties
-  onClick: (event: React.MouseEvent) => void
-  onDragStart: (event: React.MouseEvent) => void
-  onContextMenu: (event: React.MouseEvent) => void
-  onRenameComplete: (taskId: string, newTitle: string) => void
+  onClick?: (e: React.MouseEvent) => void
+  onDragStart?: (e: React.MouseEvent) => void
+  onContextMenu?: (e: React.MouseEvent) => void
+  onRenameComplete?: (taskId: string, newTitle: string) => void
 }
 
 export function TaskBar({
   task,
   totalDays,
-  isSelected,
-  isEditing,
+  isSelected = false,
+  isEditing = false,
   isDragging = false,
-  style,
+  style = {},
   onClick,
   onDragStart,
   onContextMenu,
   onRenameComplete,
 }: TaskBarProps) {
-  const [editTitle, setEditTitle] = useState(task.title);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [title, setTitle] = useState(task.title)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Calculate position and width based on timeline
-  const dayWidth = 100 / totalDays;
-  const left = `${task.startDay * dayWidth}%`;
-  const width = `${task.duration * dayWidth}%`;
-  const top = `${(task.verticalPosition || 0) * 48 + 4}px`; // 48px per virtual lane, 4px margin
+  const left = (task.startDay / totalDays) * 100
+  const width = (task.duration / totalDays) * 100
 
-  // Focus input when editing starts
-  useEffect(() => {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) { // Left mouse button
+      e.preventDefault() // Prevent text selection
+      if (onDragStart) onDragStart(e);
+    }
+  }
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) onClick(e)
+  }
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (onContextMenu) onContextMenu(e)
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && onRenameComplete) {
+      onRenameComplete(task.id, title)
+    } else if (e.key === "Escape" && onRenameComplete) {
+      setTitle(task.title) // Reset to original title
+      onRenameComplete(task.id, task.title)
+    }
+  }
+
+  const handleBlur = () => {
+    if (onRenameComplete) {
+      onRenameComplete(task.id, title)
+    }
+  }
+
+  React.useEffect(() => {
     if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+      inputRef.current.focus()
     }
-  }, [isEditing]);
-
-  // Handle saving the new title
-  const handleRenameComplete = () => {
-    onRenameComplete(task.id, editTitle);
-  };
-
-  // Handle key press events
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleRenameComplete();
-    } else if (e.key === "Escape") {
-      setEditTitle(task.title); // Reset to original
-      handleRenameComplete();
-    }
-    e.stopPropagation();
-  };
+  }, [isEditing])
 
   return (
     <div
-      className={`absolute h-10 rounded-md ${task.color} ${
-        isSelected ? "ring-2 ring-primary ring-offset-1" : ""
-      } ${isDragging ? "opacity-80 shadow-lg scale-105 z-10" : ""} 
-      cursor-move flex items-center px-2 overflow-hidden text-white text-sm shadow-md 
-      select-none touch-none`}
-      style={{ 
-        left, 
-        width,
-        top,
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        ...style
+      className={`absolute h-10 rounded-md flex items-center px-2 cursor-pointer transition-all ${
+        isSelected ? "ring-2 ring-blue-500" : ""
+      } ${isDragging ? "opacity-70" : ""} ${task.color}`}
+      style={{
+        left: `${left}%`,
+        width: `${width}%`,
+        ...style,
       }}
-      onClick={(e) => {
-        onClick(e);
-      }}
-      onMouseDown={(e) => {
-        if (!isEditing) {
-          e.preventDefault();
-          e.stopPropagation();
-          onDragStart(e);
-        }
-      }}
-      onContextMenu={(e) => {
-        onContextMenu(e);
-      }}
+      onClick={handleClick}
+      onMouseDown={handleMouseDown}
+      onContextMenu={handleContextMenu}
+      draggable={false}
     >
       {isEditing ? (
-        <Input
+        <input
           ref={inputRef}
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          onBlur={handleRenameComplete}
-          onKeyDown={handleKeyDown}
-          className="h-6 w-full bg-transparent border-none text-white placeholder:text-white/70 focus-visible:ring-0 focus-visible:ring-offset-0"
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
+          className="bg-transparent text-white w-full outline-none"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyPress}
+          onBlur={handleBlur}
+          autoFocus
         />
       ) : (
-        <span className="truncate">{task.title}</span>
+        <div className="text-sm text-white font-medium truncate">{task.title}</div>
       )}
     </div>
-  );
+  )
 }
 

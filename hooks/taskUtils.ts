@@ -13,10 +13,13 @@ export const getTaskVirtualLane = (taskId: string, laneTasks: Task[]): number =>
 }
 
 export const getOverlappingTasks = (tasks: Task[], targetTask: Task, startDay: number, verticalPosition: number): Task[] => {
+  // Ensure we're comparing with the actual vertical position or default 0
+  const targetPosition = verticalPosition ?? 0;
+  
   return tasks.filter(task =>
     task.laneId === targetTask.laneId &&
     task.id !== targetTask.id &&
-    task.verticalPosition === verticalPosition &&
+    (task.verticalPosition ?? 0) === targetPosition && // Compare with default 0 if not defined
     task.startDay < (startDay + targetTask.duration) &&
     (task.startDay + task.duration) > startDay
   );
