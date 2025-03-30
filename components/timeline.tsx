@@ -107,6 +107,7 @@ export function Timeline() {
                 tasks
                   .filter((task) => task.laneId === lane.id)
                   .map((task) => {
+                    const virtualLanePosition = getTaskVirtualLane(task.id, tasks.filter(t => t.laneId === lane.id));
                     const isOverlapping = dragInfo?.taskIds.includes(task.id) && tasks.some(t => 
                       t.laneId === task.laneId && 
                       t.id !== task.id && 
@@ -116,10 +117,14 @@ export function Timeline() {
                     );
 
                     return (
-                      <div key={task.id} className="relative">
+                      <div key={task.id} className="relative" style={{
+                        top: `${virtualLanePosition * 48}px`,
+                        position: 'absolute',
+                        width: '100%'
+                      }}>
                         {isOverlapping && (
                           <TaskOverlapIndicator
-                            position={"above"} // or "below" based on logic
+                            position={"above"}
                             isVisible={true}
                           />
                         )}
@@ -129,9 +134,8 @@ export function Timeline() {
                           isSelected={selectedTasks.includes(task.id)}
                           isEditing={editingTaskId === task.id}
                           isDragging={dragInfo?.taskIds.includes(task.id) || false}
-                          isOverlapping={isOverlapping}
                           style={{
-                            top: `${getTaskVirtualLane(task.id, tasks.filter(t => t.laneId === lane.id)) * 48 + 4}px`
+                            top: '4px'
                           }}
                           onClick={(e) => handleTaskClick(task.id, e)}
                           onDragStart={(e) => handleTaskDragStart(task.id, e, timelineRef.current?.getBoundingClientRect().width || 0, totalDays)}
