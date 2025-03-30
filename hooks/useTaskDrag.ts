@@ -140,37 +140,26 @@ export function useTaskDrag(
         setTasks((prevTasks: Task[]) => {
           try {
             const newTasks = [...prevTasks];
-            const relevantLaneIds = new Set<string>();
-            
-            // First identify relevant lanes (those containing dragged tasks)
-            dragInfo.taskIds.forEach(taskId => {
-              const task = prevTasks.find(t => t.id === taskId);
-              if (task) {
-                relevantLaneIds.add(task.laneId);
-              }
-            });
             
             // Process each dragged task only once
             for (const taskId of dragInfo.taskIds) {
               const taskIndex = newTasks.findIndex(t => t.id === taskId);
-              if (taskIndex === -1) {
-                continue;
-              }
+              if (taskIndex === -1) continue;
               
               const task = {...newTasks[taskIndex]};
               
               // Get tasks in the same lane
               const laneTasks = newTasks.filter(t => t.laneId === task.laneId);
-              console.log(`[DEBUG] Task ${task.id} (${task.title}) in lane ${task.laneId}, Virtual Lane: ${task.verticalPosition}`);
+              console.log(`[DEBUG] Task ${task.id} (${task.title}) in lane ${task.laneId}, Virtual Lane: ${task.verticalPosition ?? 0}`);
               
               // Check if task moved to a new vertical lane
               const originalPosition = dragInfo.originalPositions.find(p => p.id === taskId);
               
               if (originalPosition) {
-                console.log(`[DEBUG] Task ${task.id} moved from VL:${originalPosition.verticalPosition} to VL:${task.verticalPosition}`);
+                console.log(`[DEBUG] Task ${task.id} moved from VL:${originalPosition.verticalPosition} to VL:${task.verticalPosition ?? 0}`);
               }
               
-              // Find tasks that overlap with this task in its CURRENT virtual lane ONLY
+              // Find tasks that overlap with this task in its CURRENT virtual lane
               const overlappingTasks = laneTasks.filter(t => {
                 // Skip self-comparison and tasks in different virtual lanes
                 if (t.id === task.id || (t.verticalPosition ?? 0) !== (task.verticalPosition ?? 0)) {
@@ -190,40 +179,29 @@ export function useTaskDrag(
                 // Only log detailed information for tasks that actually overlap
                 if (timeOverlap) {
                   console.log(`[DEBUG] Overlap Found - Task ${task.id} with ${t.id}:
-                    Virtual Lane: ${task.verticalPosition},
+                    Virtual Lane: ${task.verticalPosition ?? 0},
                     Time Range: ${taskStart}-${taskEnd} overlaps with ${otherStart}-${otherEnd}`);
-                } else if (Math.abs(taskStart - otherEnd) <= 1 || Math.abs(otherStart - taskEnd) <= 1) {
-                  // If they're just touching (off by 1 or less), log this for debugging
-                  console.log(`[DEBUG] Tasks almost touching but not overlapping - Task ${task.id} with ${t.id}:
-                    Virtual Lane: ${task.verticalPosition},
-                    Time Range: ${taskStart}-${taskEnd} vs ${otherStart}-${otherEnd}`);
                 }
 
                 return timeOverlap;
               });
               
               if (overlappingTasks.length > 0) {
-                console.log(`[DEBUG] Creating new virtual lane for task ${task.id} at position ${task.verticalPosition}`);
+                console.log(`[DEBUG] Creating new virtual lane for task ${task.id} at position ${task.verticalPosition ?? 0}`);
+                
+                // Determine the current virtual lane position (defaulting to 0 if undefined)
+                const currentVirtualLane = task.verticalPosition ?? 0;
                 
                 // Shift down any existing tasks that are at or below the new position
-                const tasksToShift = new Set<string>();
-                
                 laneTasks.forEach(laneTask => {
                   // Only shift tasks that are in the same lane position or below
                   // And don't shift the task being dragged itself
-                  if (laneTask.verticalPosition >= task.verticalPosition && laneTask.id !== task.id) {
-                    tasksToShift.add(laneTask.id);
-                  }
-                });
-                
-                // Apply the shifts
-                laneTasks.forEach(laneTask => {
-                  if (tasksToShift.has(laneTask.id)) {
+                  if ((laneTask.verticalPosition ?? 0) >= currentVirtualLane && laneTask.id !== task.id) {
                     const idx = newTasks.findIndex(t => t.id === laneTask.id);
                     if (idx !== -1) {
                       newTasks[idx] = {
                         ...laneTask,
-                        verticalPosition: laneTask.verticalPosition + 1
+                        verticalPosition: (laneTask.verticalPosition ?? 0) + 1
                       };
                     }
                   }
@@ -232,10 +210,12 @@ export function useTaskDrag(
                 // Keep the dragged task at the same position
                 newTasks[taskIndex] = {
                   ...task,
-                  verticalPosition: task.verticalPosition
+                  verticalPosition: currentVirtualLane
                 };
+                
+                console.log(`[DEBUG] Overlap resolved - Created new virtual lane at position ${currentVirtualLane}`);
               } else {
-                // No need to log detailed messages when there's no overlap
+                console.log(`[DEBUG] No overlap detected for task ${task.id}`);
               }
             }
             
