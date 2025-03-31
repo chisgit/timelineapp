@@ -1,7 +1,13 @@
 import { useState, useRef } from "react";
 import { Task, DragInfo, MousePosition } from "@/lib/types";
-import { getDayWidth, getTaskVirtualLane } from "./taskUtils";
-import { getOverlappingTasks, createNewVirtualLane } from "./taskUtils";
+import { 
+  getDayWidth, 
+  getTaskVirtualLane,
+  getOverlappingTasks, 
+  createNewVirtualLane,
+  findEmptyTopVirtualLanes,
+  removeEmptyTopVirtualLanes
+} from "./taskUtils";
 
 export function useTaskDrag(
   tasks: Task[],
@@ -165,7 +171,7 @@ export function useTaskDrag(
       if (dayWidth > 0 && dragInfo.taskIds.length > 0) {
         setTasks((prevTasks: Task[]) => {
           try {
-            const newTasks = [...prevTasks];
+            let newTasks = [...prevTasks];
             
             // Process each dragged task only once
             for (const taskId of dragInfo.taskIds) {
@@ -270,6 +276,24 @@ export function useTaskDrag(
                 console.log(`[DEBUG] No overlap detected for task ${task.id}`);
               }
             }
+            
+            // After processing all dragged tasks, check for empty lanes at the top of each affected swim lane
+            const affectedLaneIds = new Set(dragInfo.taskIds.map(id => {
+              const task = newTasks.find(t => t.id === id);
+              return task?.laneId;
+            }).filter(Boolean));
+            
+            // Process each affected lane
+            affectedLaneIds.forEach(laneId => {
+              // Check for empty virtual lanes at the top
+              const emptyTopLaneCount = findEmptyTopVirtualLanes(newTasks, laneId);
+              
+              if (emptyTopLaneCount > 0) {
+                console.log(`[DEBUG] Found ${emptyTopLaneCount} empty virtual lanes at the top of lane ${laneId}, removing them`);
+                // Remove empty top lanes by shifting all tasks up
+                newTasks = removeEmptyTopVirtualLanes(newTasks, laneId, emptyTopLaneCount);
+              }
+            });
             
             return newTasks;
           } catch (error) {

@@ -84,3 +84,49 @@ export const collapseEmptyVirtualLane = (tasks: Task[], laneId: string, emptyLan
   
   return newTasks;
 };
+
+export const findEmptyTopVirtualLanes = (tasks: Task[], laneId: string): number => {
+  // Get all tasks in the specified lane
+  const laneTasks = tasks.filter(t => t.laneId === laneId);
+  
+  // If no tasks, no empty lanes to worry about
+  if (laneTasks.length === 0) return 0;
+  
+  // Find consecutive empty virtual lanes at the top
+  let emptyLanes = 0;
+  
+  // Check each virtual lane position from 0 upwards
+  for (let position = 0; position < 100; position++) { // 100 is arbitrary upper limit
+    const tasksInLane = laneTasks.filter(t => (t.verticalPosition ?? 0) === position);
+    
+    // If we found a lane with tasks, we've reached the end of empty lanes
+    if (tasksInLane.length > 0) {
+      break;
+    }
+    
+    // This lane is empty
+    emptyLanes++;
+  }
+  
+  return emptyLanes;
+};
+
+export const removeEmptyTopVirtualLanes = (tasks: Task[], laneId: string, emptyLaneCount: number): Task[] => {
+  // If no empty lanes, no changes needed
+  if (emptyLaneCount <= 0) return [...tasks];
+  
+  // Create a new array to avoid mutating the input
+  const newTasks = [...tasks];
+  
+  // Shift all tasks in the specified lane up by the number of empty lanes
+  newTasks.forEach((task, index) => {
+    if (task.laneId === laneId) {
+      newTasks[index] = {
+        ...task,
+        verticalPosition: Math.max(0, (task.verticalPosition ?? 0) - emptyLaneCount)
+      };
+    }
+  });
+  
+  return newTasks;
+};
