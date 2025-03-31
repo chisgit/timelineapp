@@ -31,3 +31,56 @@ export const createNewVirtualLane = (tasks: Task[], overlappingTasks: Task[]): v
     task.verticalPosition = maxVerticalPosition + 1;
   });
 };
+
+export const shiftTasksDown = (tasks: Task[], laneId: string, fromPosition: number = 0): Task[] => {
+  // Create a new array to avoid mutating the input
+  const newTasks = [...tasks];
+  
+  // Shift all tasks in the same lane that are at or above the specified position
+  newTasks.forEach((task, index) => {
+    if (task.laneId === laneId && (task.verticalPosition ?? 0) >= fromPosition) {
+      newTasks[index] = {
+        ...task,
+        verticalPosition: (task.verticalPosition ?? 0) + 1
+      };
+    }
+  });
+  
+  return newTasks;
+};
+
+export const findEmptyVirtualLanes = (tasks: Task[], laneId: string): number[] => {
+  // Find all occupied virtual lanes in this lane
+  const occupiedLanes = tasks
+    .filter(t => t.laneId === laneId)
+    .map(t => t.verticalPosition ?? 0);
+  
+  // If no tasks, no empty lanes to worry about
+  if (occupiedLanes.length === 0) return [];
+  
+  // Find the maximum virtual lane used
+  const maxLane = Math.max(...occupiedLanes);
+  
+  // Create an array of all possible lane indices from 0 to max
+  const allPossibleLanes = Array.from({ length: maxLane + 1 }, (_, i) => i);
+  
+  // Return the lanes that are not occupied
+  return allPossibleLanes.filter(lane => !occupiedLanes.includes(lane));
+};
+
+export const collapseEmptyVirtualLane = (tasks: Task[], laneId: string, emptyLanePosition: number): Task[] => {
+  // Create a new array to avoid mutating the input
+  const newTasks = [...tasks];
+  
+  // Move all tasks that are above the empty lane down by one
+  newTasks.forEach((task, index) => {
+    if (task.laneId === laneId && (task.verticalPosition ?? 0) > emptyLanePosition) {
+      newTasks[index] = {
+        ...task,
+        verticalPosition: (task.verticalPosition ?? 0) - 1
+      };
+    }
+  });
+  
+  return newTasks;
+};

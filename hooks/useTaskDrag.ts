@@ -77,7 +77,10 @@ export function useTaskDrag(
     const deltaX = event.clientX - dragInfoRef.current.startX;
     const deltaY = event.clientY - dragInfoRef.current.startY;
     const dayDelta = Math.round(deltaX / dayWidth);
-    const verticalDelta = Math.round(deltaY / 48); // Assuming 48px per virtual lane
+    
+    // Calculate raw vertical delta in pixels, then convert to lane units (48px per lane)
+    const verticalDeltaPx = deltaY;
+    const verticalDelta = Math.round(verticalDeltaPx / 48);
 
     setTasks((prevTasks: Task[]) => {
       const newTasks = [...prevTasks];
@@ -94,21 +97,44 @@ export function useTaskDrag(
 
         const task = newTasks[taskIndex];
         const newStartDay = Math.max(0, originalPosition.startDay + dayDelta);
-        const newVerticalPosition = Math.max(0, originalPosition.verticalPosition + verticalDelta);
-
-        // Only check for overlaps when we're in the same vertical position
-        // or when we're actually moving horizontally (changing the task's time)
-        if (newVerticalPosition === task.verticalPosition) {
-          // Detect overlapping tasks only when we're not changing vertical position
-          const overlappingTasks = getOverlappingTasks(newTasks, task, newStartDay, newVerticalPosition);
-          if (overlappingTasks.length > 0) {
-            // Handle horizontal overlaps as before
-            // Note: We don't actually create new virtual lanes during drag move
-            // That only happens on drag end
+        
+        // Calculate the proposed new vertical position
+        let newVerticalPosition = Math.max(0, originalPosition.verticalPosition + verticalDelta);
+        
+        // Get all tasks in the same lane for collision detection
+        const laneTasks = newTasks.filter(t => t.laneId === task.laneId && t.id !== task.id);
+        
+        // Check if we need a new virtual lane at the top (negative position)
+        if (originalPosition.verticalPosition + verticalDelta < 0) {
+          // We're trying to go above position 0
+          
+          // Check if there are tasks at position 0 that would cause overlapping
+          const tasksAtZero = laneTasks.filter(t => {
+            const vPos = t.verticalPosition ?? 0;
+            return vPos === 0;
+          });
+          
+          if (tasksAtZero.length > 0) {
+            // Need to create space at the top
+            // First, shift all tasks down by 1
+            newTasks.forEach((t, idx) => {
+              if (t.laneId === task.laneId && t.id !== task.id) {
+                newTasks[idx] = {
+                  ...t,
+                  verticalPosition: (t.verticalPosition ?? 0) + 1
+                };
+              }
+            });
+            
+            // Then set the dragged task to position 0
+            newVerticalPosition = 0;
+          } else {
+            // No overlapping at top, just set to 0
+            newVerticalPosition = 0;
           }
         }
 
-        // Update the task position regardless of overlap
+        // Update the task position
         newTasks[taskIndex] = {
           ...task,
           startDay: newStartDay,
@@ -157,6 +183,32 @@ export function useTaskDrag(
               
               if (originalPosition) {
                 console.log(`[DEBUG] Task ${task.id} moved from VL:${originalPosition.verticalPosition} to VL:${task.verticalPosition ?? 0}`);
+                
+                // If we moved up, check if the original lane is now empty
+                if (task.verticalPosition < originalPosition.verticalPosition) {
+                  const originalVirtualLane = originalPosition.verticalPosition;
+                  const tasksInOriginalLane = laneTasks.filter(t => 
+                    t.id !== task.id && (t.verticalPosition ?? 0) === originalVirtualLane
+                  );
+                  
+                  // If original lane is now empty, collapse lanes by moving all tasks above it down
+                  if (tasksInOriginalLane.length === 0) {
+                    console.log(`[DEBUG] Empty virtual lane detected at position ${originalVirtualLane}, collapsing`);
+                    
+                    // Shift all tasks that are above the now-empty lane down by one
+                    laneTasks.forEach(laneTask => {
+                      if ((laneTask.verticalPosition ?? 0) > originalVirtualLane) {
+                        const idx = newTasks.findIndex(t => t.id === laneTask.id);
+                        if (idx !== -1) {
+                          newTasks[idx] = {
+                            ...laneTask,
+                            verticalPosition: (laneTask.verticalPosition ?? 0) - 1
+                          };
+                        }
+                      }
+                    });
+                  }
+                }
               }
               
               // Find tasks that overlap with this task in its CURRENT virtual lane
